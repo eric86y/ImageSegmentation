@@ -1,13 +1,14 @@
+import albumentations as A
 import cv2
-import torch
 import numpy as np
 import torch.nn.functional as F
+
+from albumentations.pytorch import ToTensorV2
+from Config import COLOR_DICT
+from numpy.typing import Dict, List, NDArray, Tuple, Optionals
 from Source.Utils import binarize
 from torch.utils.data import Dataset
-from Config import COLOR_DICT
 
-import albumentations as A
-from albumentations.pytorch import ToTensorV2
 
 class BinaryDataset(Dataset):
     def __init__(
@@ -26,7 +27,7 @@ class BinaryDataset(Dataset):
         self.transforms = augmentation_transforms
         self.color_transforms = color_transforms
 
-    def load_image(self, image_path: str, binarize: bool = False) -> np.array:
+    def load_image(self, image_path: str, binarize: bool = False) -> NDArray:
         image = cv2.imread(image_path)
 
         if binarize:

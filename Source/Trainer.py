@@ -12,11 +12,10 @@ from datetime import datetime
 from Source.Utils import create_dir, get_filename
 from Source.Dataset import BinaryDataset, MulticlassDataset
 from Source.Augmentations import get_augmentations
-from sklearn.model_selection import train_test_split
 
 from torch.optim import lr_scheduler
 from torch.utils.data import DataLoader
-from torchmetrics import Dice
+from torchmetrics.segmentation import DiceScore
 from torchmetrics.classification import MulticlassJaccardIndex, BinaryJaccardIndex
 
 class BinarySegmentationTrainer:
@@ -407,10 +406,7 @@ class MultiSegmentationTrainer:
         self.output_path = os.path.join(output_path, f"{self.time_stamp.year}-{self.time_stamp.month}-{self.time_stamp.day}_{self.time_stamp.hour}-{self.time_stamp.minute}")
         self.export_onnx = export_onnx
         self.jaccard_scorer = MulticlassJaccardIndex(num_classes=len(self.classes)).to(self.device)
-        self.dice_scorer = Dice(
-            num_classes=len(classes), 
-            multiclass=True,
-            threshold=0.5).to(self.device)
+        self.dice_scorer = DiceScore(num_classes=len(classes), input_format="mixed").to(self.device)
 
         create_dir(self.output_path)
         self.save_train_data()

@@ -20,10 +20,20 @@ MODERN_CLASSES = [
     "footer",
 ]
 
+
 PERIG_CLASSES = [
     "background",
     "image",
     "line",
     "margin",
     "caption"
+]
+
+
+MODERN_CLASSES_V2 = [
+    "background",
+    "line",
+    "header",
+    "margin", # = page-nr
+    "footer" # = back separator
 ]
