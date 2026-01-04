@@ -1,17 +1,16 @@
-import cv2
-import numpy as np
-from datetime import datetime
-from xml.dom import minidom
 import xml.etree.ElementTree as etree
-from Source.Utils import Bbox, LayoutData, get_utc_time
 
+from numpy.typing import NDArray
+from Source.Utils import Bbox, LayoutData, get_utc_time
+from typing import List, Tuple
+from xml.dom import minidom
 
 class PageXMLExporter:
     def __init__(self, output_dir: str) -> None:
        self.output_dir = output_dir
 
 
-    def get_bbox(self, bbox: Bbox) -> tuple[int, int, int, int]:
+    def get_bbox(self, bbox: Bbox) -> Tuple[int, int, int, int]:
         x = bbox.x
         y = bbox.y
         w = bbox.w
@@ -27,7 +26,7 @@ class PageXMLExporter:
             points += point
         return points
 
-    def get_bbox_points(self, bbox: tuple[int]):
+    def get_bbox_points(self, bbox: Tuple[int]):
         x, y, w, h = bbox
         points = f"{x},{y} {x+w},{y} {x+w},{y+h} {x},{y+h}"
         return points
@@ -57,14 +56,14 @@ class PageXMLExporter:
 
 
     def build_xml_document(self,
-        image: np.array,
+        image: NDArray,
         image_name: str,
-        images: tuple[int],
+        images: Tuple[int],
         lines,
-        margins: tuple[int],
-        captions: tuple[int],
-        text_region_bbox: tuple[int],
-        text_lines: list[str] | None,
+        margins: Tuple[int],
+        captions: Tuple[int],
+        text_region_bbox: Tuple[int],
+        text_lines: List[str] | None,
     ):
         root = etree.Element("PcGts")
         root.attrib[
@@ -104,7 +103,7 @@ class PageXMLExporter:
         text_region_coords.attrib["points"] = self.get_bbox_points(text_region_bbox)
 
 
-        def get_line_baseline(bbox: tuple[int, int, int, int]) -> str:  
+        def get_line_baseline(bbox: Tuple[int, int, int, int]) -> str:  
                 x, y, w, h = bbox
                 
                 return f"{x},{y+h} {x+w},{y+h}"
@@ -113,7 +112,7 @@ class PageXMLExporter:
             text_coords = self.get_bbox_points(lines[i])
             base_line_coords = get_line_baseline(lines[i])
             
-            if text_lines != None and len(text_lines) > 0:
+            if text_lines is not None and len(text_lines) > 0:
                 text_region.append(
                     self.get_text_line_block(coordinate=text_coords, baseline_points=base_line_coords, index=i, unicode_text=text_lines[i])
                 )
@@ -156,7 +155,7 @@ class PageXMLExporter:
         return prettyxml
 
 
-    def export(self, image: np.array, image_name: str, layout_data: LayoutData, text_lines: list[str]):
+    def export(self, image: NDArray, image_name: str, layout_data: LayoutData, text_lines: List[str]):
         image_boxes = [self.get_bbox(x) for x in layout_data.images]
         caption_boxes = [self.get_bbox(x) for x in layout_data.captions]
         margin_boxes = [self.get_bbox(x) for x in layout_data.margins]

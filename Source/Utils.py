@@ -41,6 +41,7 @@ def show_image(
     else:
         plt.imshow(image)
 
+
 def show_sample_pair(img_patch: NDArray, mask_patch: NDArray):
     fig = plt.figure(figsize=(16, 16))
     rows = 1
@@ -57,7 +58,13 @@ def show_sample_pair(img_patch: NDArray, mask_patch: NDArray):
     plt.title("Mask")
 
 
-def show_sample_overlay(img_patch: NDArray, mask_patch: NDArray, fig_x: int = 24, fix_y: int = 13, alpha: float = 0.4):
+def show_sample_overlay(
+    img_patch: NDArray,
+    mask_patch: NDArray,
+    fig_x: int = 24,
+    fix_y: int = 13,
+    alpha: float = 0.4,
+):
     plt.figure(figsize=(fig_x, fix_y))
     plt.axis("off")
     plt.title("Image-Mask overlay")
@@ -68,8 +75,8 @@ def show_sample_overlay(img_patch: NDArray, mask_patch: NDArray, fig_x: int = 24
 def create_dir(dir_path: str) -> None:
     try:
         os.makedirs(dir_path, exist_ok=True)
-    except:
-        logging.error("Failed creating output directories")
+    except BaseException as e:
+        logging.error(f"Failed creating output directories: {e}")
 
 
 def get_filename(file_path: str) -> str:
@@ -92,7 +99,8 @@ def generate_simple_datasplit(
     split_ratio: float = 0.2,
     seed: int = 42,
 ):
-    train_images, val_images, train_xml, val_xml = train_test_split(images, annotations, test_size=split_ratio, random_state=seed
+    train_images, val_images, train_xml, val_xml = train_test_split(
+        images, annotations, test_size=split_ratio, random_state=seed
     )
 
     return train_images, train_xml, val_images, val_xml
@@ -121,8 +129,8 @@ def split_dataset(
 
 def crop_image_to_bbox(image: NDArray, mask: NDArray) -> Tuple[NDArray, NDArray]:
     brect = get_brect(mask)
-    image = image[brect.y:brect.y+brect.h, brect.x:brect.x+brect.w]
-    mask = mask[brect.y:brect.y+brect.h, brect.x:brect.x+brect.w]
+    image = image[brect.y : brect.y + brect.h, brect.x : brect.x + brect.w]
+    mask = mask[brect.y : brect.y + brect.h, brect.x : brect.x + brect.w]
 
     return image, mask
 
@@ -136,16 +144,6 @@ def binarize(image: NDArray) -> NDArray:
     )
     image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
 
-    return image
-
-
-def resize_to_width(image: NDArray, target_width: int) -> NDArray:
-    width_ratio = target_width / image.shape[1]
-    image = cv2.resize(
-        image,
-        (target_width, int(image.shape[0] * width_ratio)),
-        interpolation=cv2.INTER_LINEAR,
-    )
     return image
 
 
@@ -163,7 +161,7 @@ def rotate_from_hough(image: NDArray) -> Tuple[NDArray, float]:
     )
 
     if lines is None or len(lines) == 0:
-        logging.warning(f"No lines found in image, skipping...")
+        logging.warning("No lines found in image, skipping...")
 
         return image, 0
 
@@ -257,7 +255,7 @@ def unpatch_image(image, pred_patches: List) -> NDArray:
 
 
 def pad_to_multiple(img: NDArray, multiple: int = 512):
-    """adaptively padding the images to the chosen tile size """
+    """adaptively padding the images to the chosen tile size"""
     h, w = img.shape[:2]
     new_h = ((h + multiple - 1) // multiple) * multiple
     new_w = ((w + multiple - 1) // multiple) * multiple
@@ -309,9 +307,10 @@ def is_mask_empty(mask):
     if len(mask.shape) == 3:
         return not np.any(mask)
     else:
-    
+
         return not np.any(mask > 0)
-    
+
+
 def optimize_countour(cnt, e: float = 0.001):
     epsilon = e * cv2.arcLength(cnt, True)
     return cv2.approxPolyDP(cnt, epsilon, True)
@@ -408,8 +407,15 @@ def resize_to_width(image: NDArray, target_width: int) -> Tuple[NDArray, float]:
 Segmentation Mask Generation
 """
 
-def generate_dataset(images: List[str], annotations: List[str], img_out_dir: str, mask_out_dir: str, precrop: bool = False, output_overlays: bool = False):
-    assert(len(images) == len(annotations))
+
+def generate_dataset(
+    images: List[str],
+    annotations: List[str],
+    img_out_dir: str,
+    mask_out_dir: str,
+    precrop: bool = False
+):
+    assert len(images) == len(annotations)
 
     for _img, _xml in tqdm(zip(images, annotations), total=len(images)):
         image_n = os.path.basename(_img).split(".")[0]
@@ -421,7 +427,7 @@ def generate_dataset(images: List[str], annotations: List[str], img_out_dir: str
         if img is None or mask is None:
             print(f"Warning: Error processing {_img} or {_xml}.")
             continue
-        
+
         if img.shape[:2] != mask.shape[:2]:
             print(f"Warning: image and mask have different sizes {_img}")
             continue
@@ -433,17 +439,25 @@ def generate_dataset(images: List[str], annotations: List[str], img_out_dir: str
         cv2.imwrite(mask_out, mask)
 
 
-def generate_tiled_dataset(images: List[str], annotations: List[str], img_out_dir: str, mask_out_dir: str, tile_size: int = 512, overlap: float = 0.9, precrop: bool = False):
+def generate_tiled_dataset(
+    images: List[str],
+    annotations: List[str],
+    img_out_dir: str,
+    mask_out_dir: str,
+    tile_size: int = 512,
+    overlap: float = 0.9,
+    precrop: bool = False,
+):
     stride = int(tile_size * (1 - overlap))
 
-    assert (stride != 0)
+    assert stride != 0
 
     for _img, _xml in tqdm(zip(images, annotations), total=len(images)):
         img, mask = generate_mask_image(_img, _xml)
 
         if precrop:
             crop_image_to_bbox(img, mask)
-    
+
         img = pad_to_multiple(img, tile_size)
         mask = pad_to_multiple(mask, tile_size)
 
@@ -452,8 +466,8 @@ def generate_tiled_dataset(images: List[str], annotations: List[str], img_out_di
         tile_idx = 0
         for y in range(0, h - tile_size + 1, stride):
             for x in range(0, w - tile_size + 1, stride):
-                img_tile = img[y:y+tile_size, x:x+tile_size]
-                mask_tile = mask[y:y+tile_size, x:x+tile_size]
+                img_tile = img[y : y + tile_size, x : x + tile_size]
+                mask_tile = mask[y : y + tile_size, x : x + tile_size]
 
                 # skip if mask is empty (i.e. black area)
                 if is_mask_empty(mask_tile):
@@ -473,9 +487,8 @@ def generate_multi_mask(
 ) -> NDArray:
     try:
         annotation_tree = minidom.parse(annotation_file)
-
-    except:
-        print(f"Failed to parse: {annotation_file}")
+    except BaseException as e:
+        print(f"Failed to parse: {annotation_file}, {e}")
         return
 
     img_height = img.shape[0]
@@ -485,7 +498,7 @@ def generate_multi_mask(
     textareas = annotation_tree.getElementsByTagName("TextRegion")
     imageareas = annotation_tree.getElementsByTagName("ImageRegion")
     line_areas = annotation_tree.getElementsByTagName("TextLine")
-    #back_separator = annotation_tree.getElementsByTagName("UnknownRegion")
+    # back_separator = annotation_tree.getElementsByTagName("UnknownRegion")
 
     # old legady annotations
     advert_areas = annotation_tree.getElementsByTagName(
@@ -585,7 +598,9 @@ def generate_multi_mask(
     return image_mask
 
 
-def generate_mask_image(image_path: str, xml_path: str, annotate_lines: bool = True) -> Tuple[NDArray, NDArray]:
+def generate_mask_image(
+    image_path: str, xml_path: str, annotate_lines: bool = True
+) -> Tuple[NDArray, NDArray]:
     img = cv2.imread(image_path)
     clahe = cv2.createCLAHE(clipLimit=0.8, tileGridSize=(24, 24))
     img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -614,12 +629,12 @@ def generate_masks(
 
     try:
         sanity_check(_images, _xml)
-    except:
-        logging.error(f"Image-Label Pairing broken in: {directory}")
+    except BaseException as e:
+        logging.error(f"Image-Label Pairing broken in: {directory}, {e}")
         return
 
     mask_dir = os.path.join(directory, "Masks")
-    output_dir = os.path.join(mask_dir, f"Multiclass")
+    output_dir = os.path.join(mask_dir, "Multiclass")
     output_masks = os.path.join(output_dir, "Masks")
 
     create_dir(mask_dir)

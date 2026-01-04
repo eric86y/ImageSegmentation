@@ -3,20 +3,19 @@ import cv2
 import numpy as np
 import os
 from glob import glob
-import torch.nn.functional as F
 
 from albumentations.pytorch import ToTensorV2
 from Config import COLOR_DICT
 from numpy.typing import NDArray
-from Source.Utils import binarize
 from torch.utils.data import Dataset
 from torchvision.io import read_image
+from typing import Dict, List
 
 class BinaryDataset(Dataset):
     def __init__(
         self,
-        images: list[str],
-        masks: list[str],
+        images: List[str],
+        masks: List[str],
         normalization_type: int = 0,
         augmentation_transforms=None,
         color_transforms=None
@@ -45,7 +44,7 @@ class BinaryDataset(Dataset):
             )
         return image
 
-    def encode_mask(self, y):
+    def encode_mask(self, y: NDArray):
         label_map = np.zeros((y.shape[0], y.shape[1], 1), dtype=np.uint8)
         label_map[np.all(y == [255, 255, 255], axis=-1)] = 1
         label_map = label_map[:, :, 0]
@@ -79,9 +78,9 @@ class BinaryDataset(Dataset):
 
 class MulticlassDataset(Dataset):
     def __init__(
-            self, images: list[str],
-            masks: list[str],
-            classes: dict,
+            self, images: List[str],
+            masks: List[str],
+            classes: Dict,
             normalization_type: int = 0,
             augmentation_transforms=None,
             color_transforms=None) -> None:
