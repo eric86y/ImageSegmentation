@@ -1,3 +1,4 @@
+
 COLOR_DICT = {
         "background": "0, 0, 0",
         "image": "45, 255, 0",

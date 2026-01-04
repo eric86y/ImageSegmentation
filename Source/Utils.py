@@ -30,6 +30,17 @@ def get_utc_time() -> str:
     return f"{s[0]}T{s[1]}"
 
 
+def show_image(
+    image: NDArray, cmap: str = "", axis="off", fig_x: int = 24, fix_y: int = 13
+) -> None:
+    plt.figure(figsize=(fig_x, fix_y))
+    plt.axis(axis)
+
+    if cmap != "":
+        plt.imshow(image, cmap=cmap)
+    else:
+        plt.imshow(image)
+
 def show_sample_pair(img_patch: NDArray, mask_patch: NDArray):
     fig = plt.figure(figsize=(16, 16))
     rows = 1
@@ -46,8 +57,8 @@ def show_sample_pair(img_patch: NDArray, mask_patch: NDArray):
     plt.title("Mask")
 
 
-def show_sample_overlay(img_patch: NDArray, mask_patch: NDArray, alpha: float = 0.4):
-    plt.figure(figsize=(8, 8))
+def show_sample_overlay(img_patch: NDArray, mask_patch: NDArray, fig_x: int = 24, fix_y: int = 13, alpha: float = 0.4):
+    plt.figure(figsize=(fig_x, fix_y))
     plt.axis("off")
     plt.title("Image-Mask overlay")
     plt.imshow(img_patch)

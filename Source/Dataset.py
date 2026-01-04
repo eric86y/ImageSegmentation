@@ -1,14 +1,16 @@
 import albumentations as A
 import cv2
 import numpy as np
+import os
+from glob import glob
 import torch.nn.functional as F
 
 from albumentations.pytorch import ToTensorV2
 from Config import COLOR_DICT
-from numpy.typing import Dict, List, NDArray, Tuple, Optionals
+from numpy.typing import NDArray
 from Source.Utils import binarize
 from torch.utils.data import Dataset
-
+from torchvision.io import read_image
 
 class BinaryDataset(Dataset):
     def __init__(
@@ -76,7 +78,14 @@ class BinaryDataset(Dataset):
 
 
 class MulticlassDataset(Dataset):
-    def __init__(self, images: list[str], masks: list[str], classes: dict, normalization_type: int = 0, augmentation_transforms=None, color_transforms=None) -> None:
+    def __init__(
+            self, images: list[str],
+            masks: list[str],
+            classes: dict,
+            normalization_type: int = 0,
+            augmentation_transforms=None,
+            color_transforms=None) -> None:
+        
         super().__init__()
 
         self.images = images
@@ -163,3 +172,26 @@ class MulticlassDataset(Dataset):
         y = tensor_transf["mask"]
         
         return x, y
+
+
+class ImageInferenceDataset(Dataset):
+    def __init__(self, root_dir: str):
+        self.paths = sorted(
+            p for p in glob(os.path.join(root_dir, "*"))
+            if p.lower().endswith((".jpg", ".png", ".jpeg"))
+        )
+
+    def __len__(self):
+        return len(self.paths)
+
+    def __getitem__(self, idx):
+        # uint8, CHW, RGB
+        # TODO: check if images are .tif/.tiff and use alternative loading since torchvision doesn't support tif/tiff
+        img = read_image(self.paths[idx])
+
+        meta = {
+            "image_name": os.path.basename(self.paths[idx]),
+            "orig_shape": (img.shape[1], img.shape[2]),  # (H, W)
+        }
+
+        return img, meta
