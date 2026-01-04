@@ -80,7 +80,7 @@ class MulticlassDataset(Dataset):
     def __init__(
             self, images: List[str],
             masks: List[str],
-            classes: Dict,
+            classes: List[str],
             normalization_type: int = 0,
             augmentation_transforms=None,
             color_transforms=None) -> None:
