@@ -8,7 +8,7 @@ import random
 import shutil
 import statistics
 
-from datetime import datetime
+from datetime import datetime, timezone
 from glob import glob
 from natsort import natsorted
 from numpy.typing import NDArray
@@ -22,12 +22,13 @@ from pathlib import Path
 from Source.Data import BRect
 
 
-def get_utc_time() -> str:
-    t = datetime.now()
-    s = t.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
-    s = s.split(" ")
 
-    return f"{s[0]}T{s[1]}"
+def get_utc_time() -> str:
+    t = datetime.now(timezone.utc)
+    s = t.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+    date, time = s.split(" ")
+    return f"{date}T{time}Z"
+
 
 
 def show_image(
