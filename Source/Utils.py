@@ -12,13 +12,12 @@ from datetime import datetime, timezone
 from glob import glob
 from natsort import natsorted
 from numpy.typing import NDArray
-from sklearn.model_selection import train_test_split
-from typing import List, Tuple
+from pathlib import Path
 from tqdm import tqdm
+from sklearn.model_selection import train_test_split
 from xml.dom import minidom
 
 from Config import COLOR_DICT
-from pathlib import Path
 from Source.Data import BRect
 
 
@@ -94,9 +93,9 @@ def shuffle(a, b):
     return list(a), list(b)
 
 
-def generate_simple_datasplit(
-    images: List[str],
-    annotations: List[str],
+def split_dataset_simple(
+    images: list[str],
+    annotations: list[str],
     split_ratio: float = 0.2,
     seed: int = 42,
 ):
@@ -108,8 +107,8 @@ def generate_simple_datasplit(
 
 
 def split_dataset(
-    images: List[str],
-    masks: List[str],
+    images: list[str],
+    masks: list[str],
     train_val_split: float = 0.2,
     val_test_split: float = 0.5,
     seed: int = 42,
@@ -128,7 +127,7 @@ def split_dataset(
     return train_images, train_masks, val_images, val_masks, test_images, test_masks
 
 
-def crop_image_to_bbox(image: NDArray, mask: NDArray) -> Tuple[NDArray, NDArray]:
+def crop_image_to_bbox(image: NDArray, mask: NDArray) -> tuple[NDArray, NDArray]:
     brect = get_brect(mask)
     image = image[brect.y : brect.y + brect.h, brect.x : brect.x + brect.w]
     mask = mask[brect.y : brect.y + brect.h, brect.x : brect.x + brect.w]
@@ -148,7 +147,7 @@ def binarize(image: NDArray) -> NDArray:
     return image
 
 
-def rotate_from_hough(image: NDArray) -> Tuple[NDArray, float]:
+def rotate_from_hough(image: NDArray) -> tuple[NDArray, float]:
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     clahe = cv2.createCLAHE(clipLimit=0.2, tileGridSize=(8, 8))
     cl_img = clahe.apply(gray)
@@ -205,7 +204,7 @@ def rotate_from_hough(image: NDArray) -> Tuple[NDArray, float]:
 
 def patch_image(
     img: NDArray, patch_size: int = 64, overlap: int = 2, is_mask: bool = False
-) -> Tuple[List[NDArray], int]:
+) -> tuple[list[NDArray], int]:
     """
     A simple slicing function.
     Expects input_image.shape[0] and image.shape[1] % patch_size = 0
@@ -229,7 +228,7 @@ def patch_image(
     return patches, y_steps
 
 
-def unpatch_image(image, pred_patches: List) -> NDArray:
+def unpatch_image(image, pred_patches: list) -> NDArray:
     patch_size = pred_patches[0].shape[1]
 
     x_step = math.ceil(image.shape[1] / patch_size)
@@ -267,7 +266,7 @@ def pad_to_multiple(img: NDArray, multiple: int = 512):
 
 def pad_image(
     img: NDArray, patch_size: int = 64, is_mask: bool = False, pad_value: int = 255
-) -> Tuple[NDArray, Tuple[float, float]]:
+) -> tuple[NDArray, tuple[float, float]]:
     x_pad = (math.ceil(img.shape[1] / patch_size) * patch_size) - img.shape[1]
     y_pad = (math.ceil(img.shape[0] / patch_size) * patch_size) - img.shape[0]
 
@@ -295,7 +294,7 @@ def unpatch_prediction(prediction: NDArray, y_splits: int) -> NDArray:
     return prediction_sliced
 
 
-def load_image(img_path: str) -> Tuple[NDArray, NDArray]:
+def load_image(img_path: str) -> tuple[NDArray, NDArray]:
     try:
         img = cv2.imread(img_path, 1)
         return img
@@ -303,7 +302,7 @@ def load_image(img_path: str) -> Tuple[NDArray, NDArray]:
         logging.error(f"Failed to load image: {img_path}, {e}")
 
 
-def is_mask_empty(mask):
+def is_mask_empty(mask: NDArray):
     """Prüft, ob Maske komplett schwarz ist."""
     if len(mask.shape) == 3:
         return not np.any(mask)
@@ -340,7 +339,7 @@ def get_brect(image: NDArray) -> BRect:
     return BRect(x, y, w, h)
 
 
-def get_color(key: str) -> List[int]:
+def get_color(key: str) -> list[int]:
     color = COLOR_DICT[key]
     color = color.split(",")
     color = [x.strip() for x in color]
@@ -349,7 +348,7 @@ def get_color(key: str) -> List[int]:
     return color
 
 
-def sanity_check(images: List[str], annotations: List[str]) -> None:
+def sanity_check(images: list[str], annotations: list[str]) -> None:
     image_names = [os.path.basename(x).split(".")[0] for x in images]
     annotation_names = [os.path.basename(x).split(".")[0] for x in annotations]
 
@@ -394,7 +393,7 @@ def get_xml_point_list(attribute: str) -> NDArray:
     return point_array
 
 
-def resize_to_width(image: NDArray, target_width: int) -> Tuple[NDArray, float]:
+def resize_to_width(image: NDArray, target_width: int) -> tuple[NDArray, float]:
     ratio = target_width / image.shape[1]
     image = cv2.resize(
         image,
@@ -410,8 +409,8 @@ Segmentation Mask Generation
 
 
 def generate_dataset(
-    images: List[str],
-    annotations: List[str],
+    images: list[str],
+    annotations: list[str],
     img_out_dir: str,
     mask_out_dir: str,
     precrop: bool = False
@@ -441,8 +440,8 @@ def generate_dataset(
 
 
 def generate_tiled_dataset(
-    images: List[str],
-    annotations: List[str],
+    images: list[str],
+    annotations: list[str],
     img_out_dir: str,
     mask_out_dir: str,
     tile_size: int = 512,
@@ -499,15 +498,9 @@ def generate_multi_mask(
     textareas = annotation_tree.getElementsByTagName("TextRegion")
     imageareas = annotation_tree.getElementsByTagName("ImageRegion")
     line_areas = annotation_tree.getElementsByTagName("TextLine")
-    # back_separator = annotation_tree.getElementsByTagName("UnknownRegion")
-
-    # old legady annotations
-    advert_areas = annotation_tree.getElementsByTagName(
-        "AdvertRegion"
-    )  # should be header
     sep_areas = annotation_tree.getElementsByTagName(
         "UnknownRegion"
-    )  # should be footer, SeparatorRegion
+    )  # used for black bars between header and text lines
 
     cv2.floodFill(
         image=image_mask, mask=None, seedPoint=(0, 0), newVal=get_color("background")
@@ -542,7 +535,7 @@ def generate_multi_mask(
                 cv2.fillPoly(
                     image_mask,
                     [get_xml_point_list(text_area)],
-                    color=get_color("margin"),
+                    color=get_color("pagenr"),
                 )
             elif "footer" in area_attrs:
                 cv2.fillPoly(
@@ -551,6 +544,12 @@ def generate_multi_mask(
                     color=get_color("footer"),
                 )
             elif "header" in area_attrs:
+                cv2.fillPoly(
+                    image_mask,
+                    [get_xml_point_list(text_area)],
+                    color=get_color("header"),
+                )
+            elif "heading" in area_attrs:
                 cv2.fillPoly(
                     image_mask,
                     [get_xml_point_list(text_area)],
@@ -580,13 +579,7 @@ def generate_multi_mask(
     if len(sep_areas) != 0:
         for sep in sep_areas:
             cv2.fillPoly(
-                image_mask, [get_xml_point_list(sep)], color=get_color("footer")
-            )
-
-    if len(advert_areas) != 0:
-        for adv in advert_areas:
-            cv2.fillPoly(
-                image_mask, [get_xml_point_list(adv)], color=get_color("header")
+                image_mask, [get_xml_point_list(sep)], color=get_color("separator")
             )
 
     if annotate_lines:
@@ -601,7 +594,7 @@ def generate_multi_mask(
 
 def generate_mask_image(
     image_path: str, xml_path: str, annotate_lines: bool = True
-) -> Tuple[NDArray, NDArray]:
+) -> tuple[NDArray, NDArray]:
     img = cv2.imread(image_path)
     clahe = cv2.createCLAHE(clipLimit=0.8, tileGridSize=(24, 24))
     img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)

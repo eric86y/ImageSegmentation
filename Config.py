@@ -9,7 +9,8 @@ COLOR_DICT = {
         "pagenr": "0, 100, 15",
         "header": "255, 0, 0",
         "footer": "255, 255, 100",
-        "line": "0, 100, 255"
+        "line": "0, 100, 255",
+        "separator": "23, 255, 45"
     }
 
 
@@ -19,6 +20,7 @@ MODERN_CLASSES = [
     "line",
     "header",
     "footer",
+    "separator"
 ]
 
 
@@ -30,11 +32,12 @@ PERIG_CLASSES = [
     "caption"
 ]
 
-
-MODERN_CLASSES_V2 = [
-    "background",
-    "line",
-    "header",
-    "margin", # = page-nr
-    "footer" # = back separator
-]
+# some encoders, see full list here: https://smp.readthedocs.io/en/latest/encoders.html
+BACKBONES = {
+    "resnet" : "resnet34", # default, 21m parameters
+    "efficientnet" : "timm-efficientnet-b5", # 28m parameters
+    "restnest50" : "timm-restnest50d",
+    "restnest100" : "timm-resnest101e", # 46m parameters
+    "mit_b2" : "mit_b2", # 24m parameters
+    "mit_b3" : "mit_b3",# 44m parameters
+}

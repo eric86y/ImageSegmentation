@@ -7,7 +7,6 @@ import torch.optim as optim
 import segmentation_models_pytorch as sm
 
 from tqdm import tqdm
-from typing import List
 from datetime import datetime
 from Source.Utils import create_dir, get_filename
 from Source.Dataset import BinaryDataset, MulticlassDataset
@@ -21,12 +20,12 @@ from torchmetrics.classification import MulticlassJaccardIndex, BinaryJaccardInd
 class BinarySegmentationTrainer:
     def __init__(
         self,
-        train_x: List[str],
-        train_y: List[str],
-        valid_x: List[str],
-        valid_y: List[str],
-        test_x: List[str],
-        test_y: List[str],
+        train_x: list[str],
+        train_y: list[str],
+        valid_x: list[str],
+        valid_y: list[str],
+        test_x: list[str],
+        test_y: list[str],
         image_width: int = 512,
         image_height: int = 512,
         batch_size: int = 32,
@@ -62,6 +61,10 @@ class BinarySegmentationTrainer:
         self.train_transforms, self.color_transforms, self.val_transforms = get_augmentations(
             image_width=self.image_width, image_height=self.image_height
         )
+
+
+        assert(len(self.train_x) == len(self.train_y))
+        assert(len(self.valid_x) == len(self.valid_y))
 
         self.train_ds = BinaryDataset(
             images=self.train_x,
@@ -179,10 +182,11 @@ class BinarySegmentationTrainer:
                 file_n = get_filename(entry)
                 f.write(f"{file_n}\n")
 
-        with open(test_samples, "w") as f:
-            for entry in self.test_x:
-                file_n = get_filename(entry)
-                f.write(f"{file_n}\n")
+        if self.test_x is not None:
+            with open(test_samples, "w") as f:
+                for entry in self.test_x:
+                    file_n = get_filename(entry)
+                    f.write(f"{file_n}\n")
 
     def save_model_config(self, model_name: str):
         model_config = {
@@ -203,11 +207,11 @@ class BinarySegmentationTrainer:
 
     def save_training_history(
         self,
-        train_losses: List[float],
-        train_scores: List[float],
-        val_losses: List[float],
-        val_scores: List[float],
-        val_jaccard_scores: List[float],
+        train_losses: list[float],
+        train_scores: list[float],
+        val_losses: list[float],
+        val_scores: list[float],
+        val_jaccard_scores: list[float],
         out_file: str,
     ) -> None:
         print(f"Saving Training History.... {out_file}")
@@ -374,17 +378,19 @@ class BinarySegmentationTrainer:
 class MultiSegmentationTrainer:
     def __init__(
         self,
-        train_x: List[str],
-        train_y: List[str],
-        valid_x: List[str],
-        valid_y: List[str],
-        test_x: List[str],
-        test_y: List[str],
-        classes: List[str],
-        image_width: int,
-        image_height: int,
+        train_x: list[str],
+        train_y: list[str],
+        valid_x: list[str],
+        valid_y: list[str],
+        test_x: list[str] | None,
+        test_y: list[str] | None,
+        classes: list[str],
+        image_width: int = 512,
+        image_height: int = 512,
         batch_size: int = 32,
         network: str = "deeplab",
+        backbone: str = "resnet34",
+        encoder_weights: str | None = "imagenet",
         output_path: str = "Output",
         export_onnx: str = "yes",
     ) -> None:
@@ -406,10 +412,13 @@ class MultiSegmentationTrainer:
         self.output_path = os.path.join(output_path, f"{self.time_stamp.year}-{self.time_stamp.month}-{self.time_stamp.day}_{self.time_stamp.hour}-{self.time_stamp.minute}")
         self.export_onnx = export_onnx
         self.jaccard_scorer = MulticlassJaccardIndex(num_classes=len(self.classes)).to(self.device)
-        self.dice_scorer = DiceScore(num_classes=len(classes), input_format="mixed").to(self.device)
+        self.dice_scorer = DiceScore(num_classes=len(classes), input_format="mixed", average="micro").to(self.device)
 
         create_dir(self.output_path)
         self.save_train_data()
+
+        assert(len(self.train_x) == len(self.train_y))
+        assert(len(self.valid_x) == len(self.valid_y))
 
         self.train_transforms, self.color_transforms, self.val_transforms = get_augmentations(
             image_width=self.image_width, image_height=self.image_height
@@ -422,9 +431,14 @@ class MultiSegmentationTrainer:
             images=self.valid_x, masks=self.valid_y, classes=self.classes, augmentation_transforms=self.val_transforms
         )
 
-        self.test_ds = MulticlassDataset(
-            images=self.test_x, masks=self.test_y, classes=self.classes, augmentation_transforms=self.val_transforms
-        )
+        if self.test_x is not None and self.test_y is not None:
+            assert(len(self.test_x) == len(self.test_y))
+
+            self.test_ds = MulticlassDataset(
+                images=self.test_x, masks=self.test_y, classes=self.classes, augmentation_transforms=self.val_transforms
+            )
+        else:
+            self.test_ds = None
 
         self.train_dl = DataLoader(
             dataset=self.train_ds, batch_size=self.batch_size, shuffle=True
@@ -433,11 +447,12 @@ class MultiSegmentationTrainer:
             dataset=self.valid_ds, batch_size=self.batch_size, shuffle=True
         )
 
-        self.test_dl = DataLoader(dataset=self.test_ds, batch_size=self.batch_size, shuffle=False)
+        if self.test_ds is not None:
+            self.test_dl = DataLoader(dataset=self.test_ds, batch_size=self.batch_size, shuffle=False)
 
         self.pin_memory = True
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.model = sm.DeepLabV3Plus(classes=len(self.classes), encoder_weights=None).to(self.device)
+        self.model = sm.DeepLabV3Plus(classes=len(self.classes), backbone=backbone, encoder_weights=encoder_weights).to(self.device)
 
         self.default_learning_rate = 0.001
         self.optimizer = optim.Adam(self.model.parameters(), lr=self.default_learning_rate)
@@ -500,11 +515,11 @@ class MultiSegmentationTrainer:
 
     def save_training_history(
         self,
-        train_losses: List[float],
-        train_scores: List[float],
-        val_losses: List[float],
-        val_dice_score: List[float],
-        val_jaccard_score: List[float],
+        train_losses: list[float],
+        train_scores: list[float],
+        val_losses: list[float],
+        val_dice_score: list[float],
+        val_jaccard_score: list[float],
         test_dice_score: float,
         test_jaccard_score: float,
         out_file: str,
@@ -535,9 +550,10 @@ class MultiSegmentationTrainer:
             for entry in self.valid_x:
                 f.write(f"{entry}\n")
 
-        with open(test_imgs, "w") as f:
-            for entry in self.test_x:
-                f.write(f"{entry}\n")
+        if self.test_x is not None:
+            with open(test_imgs, "w") as f:
+                for entry in self.test_x:
+                    f.write(f"{entry}\n")
 
     def save_model_config(self, filename: str):
         model_config = {
@@ -587,7 +603,15 @@ class MultiSegmentationTrainer:
         print("Finished Training!")
 
 
-    def train_model(self, loader, model, optimizer, focal_loss_fn, dice_loss_fn, scaler):
+    def train_model(
+            self, loader: DataLoader,
+            model: torch.nn.Module,
+            optimizer: torch.optim.Optimizer,
+            focal_loss_fn: torch.nn.Module,
+            dice_loss_fn: torch.nn.Module,
+            scaler: torch.amp.GradScaler
+    ):
+        
         loop = tqdm(loader)
         epoch_loss = []
         epoch_score = []
@@ -671,12 +695,19 @@ class MultiSegmentationTrainer:
 
                 if current_patience == 0:
                     print("Early stopping training...")
-                    _, test_dice_score, test_jaccard_score = self.check_accuracy(
-                        self.test_dl,
-                        self.model,
-                        self.dice_loss_fn,
-                        self.focal_loss_fn,
-                        split="Test")
+
+                    if self.test_dl is not None:
+                        _, test_dice_score, test_jaccard_score = self.check_accuracy(
+                            self.test_dl,
+                            self.model,
+                            self.dice_loss_fn,
+                            self.focal_loss_fn,
+                            split="Test")
+                    else:
+                        print("No Testing distribution provided, skipping accuracy test.")
+
+                        test_dice_score = -1.0
+                        test_jaccard_score = -1.0
 
                     self.save_training_history(
                         train_losses=train_loss_history,
@@ -698,7 +729,13 @@ class MultiSegmentationTrainer:
 
             self.scheduler.step()
 
-        _, test_dice_score, test_jaccard_score = self.check_accuracy(self.test_dl, self.model, self.dice_loss_fn, self.focal_loss_fn)
+        if self.test_dl is not None:
+            _, test_dice_score, test_jaccard_score = self.check_accuracy(self.test_dl, self.model, self.dice_loss_fn, self.focal_loss_fn)
+        else:
+                print("No Testing distribution provided, skipping accuracy test.")
+
+                test_dice_score = -1.0
+                test_jaccard_score = -1.0
   
         self.save_training_history(
             train_losses=train_loss_history,
