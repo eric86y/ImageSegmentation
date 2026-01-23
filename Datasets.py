@@ -49,7 +49,7 @@ def download_photi_layout_dataset(target_dir: str = "Datasets") -> str:
 
 
 def download_modern_books_datset(target_dir: str = "Datasets") -> str:
-    dataset_id = "BDRC/LayoutSegmentation_Dataset"
+    dataset_id = "BDRC/ModernBooksLayout_v1"
     data_path = _do_snapshot_download(dataset_id, target_dir)
 
     with ZipFile(f"{data_path}/data.zip", 'r') as zip:
